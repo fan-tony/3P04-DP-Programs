@@ -4,3 +4,5 @@ Arduino and orientation sensors to collect data through bluetooth
 Use tensorflow to create a prediction set using collected data
 Compare new patient to prediction model
 Data is output through a UI to determine improvements
+
+The ESP32 I used had the I2C address at 0x28
