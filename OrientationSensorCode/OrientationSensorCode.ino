@@ -1,4 +1,6 @@
-//MAKE SURE YOU PLUG SDA INTO GPIO21 AND SCL INTO GPIO22
+//CODE FOR INTERFACING TWO BNO055 ORIENTATION SENSORS AND THE ESP32 
+//Sensor1 sda=GPIO21, scl-gpio22
+//Sensor 2 sda=gpio33; scl=gpio32
 //I2C address is 0x28
 
 #include <Wire.h>
@@ -11,6 +13,7 @@
 #define SDA_2 33
 #define SCL_2 32
 
+/*Initial Setup*/
 BluetoothSerial SerialBT;//setup bluetooth
 Adafruit_BNO055 bno1; //initialize sensor object1
 Adafruit_BNO055 bno2; //initialize sensor object2; this has the changed sda and scl 
@@ -41,23 +44,59 @@ void setup(void){
   bno2.setExtCrystalUse(true);
 }
 
-//Changes a passed in array to hold the values of the orientation found from the sensor
+/**********************************************
+ * Functions to be used in the main method    *
+ **********************************************/
 void getOrientation(sensors_event_t event, double orientation[]){
+//Changes a passed in array to hold the values of the orientation found from the sensor
   orientation[0] = (event.orientation.x);
   orientation[1] = (event.orientation.y);
   orientation[2] = (event.orientation.z);
  }
 
-
+void infoToString(double info[][3], int spot){//info is expressed as a double array where each array holds 3 elements denoting x, y, and z
+  Serial.print("X: ");
+  Serial.print(info[spot][0], 4);
+  Serial.print("\tY: ");
+  Serial.print(info[spot][1], 4);
+  Serial.print("\tZ: ");
+  Serial.print(info[spot][2], 4);
+  Serial.println("");
+}
+/******************
+* Global variables*
+******************/
 double infoS[200][3];//global variable holding angle information of the shin; is an array that holds other arrays
 double infoF[200][3];//global variable holding angle information of the foot; is an array that holds other arrays
+double 
 int spot = 0;//initialize the spot of the array you're on
+
+
+/********************************
+ * Main method to be implemented*
+ *******************************/
 void loop(void){
-  while (spot < int(200)){//only run this 200 times
-    /* Get a new sensor event */
+  //first determine if the current data is useful; ie, if the foot is accelerating, meaning movement is occuring, then we want to start recording the data
+  /* //testing the acceleration vectors*/
+  imu::Vector<3> accel1 = bno1.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+  imu::Vector<3> accel2 = bno2.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+  //Display the floating point data 
+  /*
+  Serial.print("X: ");
+  Serial.print(accel1.x());
+  Serial.print(" Y: ");
+  Serial.print(accel1.y());
+  Serial.print(" Z: ");
+  Serial.print(accel1.z());
+  Serial.println("");
+  */
+  
+  if (spot < int(200)){//only collect 200 instances of data
+    
     sensors_event_t event1;//initialize event as a sensor event for sensor object 1
     sensors_event_t event2;//initialize event as a sensor event for sensor object 2
-    
+
+    /* Get a new sensor event for both sensor objects*/
     bno1.getEvent(&event1);//get the event occuring and store it in event 1
     bno2.getEvent(&event2);//store the event from sensor 2 in event2's address
 
@@ -68,53 +107,17 @@ void loop(void){
     getOrientation(event2, orient2);//get the orientation from sensor 2
 
     /* Store the obtained sensor x y and z, then push it to the global arrays storing the real time values; infoF and infoS*/
-    infoF[spot][0] = orient1[0];
-    infoF[spot][1] = orient1[1];
-    infoF[spot][2] = orient1[2];
+    for(int i=0;i<3;i++){
+      infoF[spot][i] = orient1[i];
+      infoS[spot][i] = orient2[i];
+    }
+    
+    //print them out to verify 
+    infoToString(infoF,spot);
+    infoToString(infoS,spot);
 
-    infoS[spot][0] = orient2[0];
-    infoS[spot][1] = orient2[1];
-    infoS[spot][2] = orient2[2];
-    
-    Serial.print("X: ");
-    Serial.print(infoF[0][0], 4);
-    Serial.print("\tY: ");
-    Serial.print(infoF[0][1], 4);
-    Serial.print("\tZ: ");
-    Serial.print(infoF[0][2], 4);
-    Serial.println("");
 
-    Serial.print("X: ");
-    Serial.print(infoS[0][0], 4);
-    Serial.print("\tY: ");
-    Serial.print(infoS[0][1], 4);
-    Serial.print("\tZ: ");
-    Serial.print(infoS[0][2], 4);
-    Serial.println("");
-    
-    
-    /* Display the floating point data for orientation to your bluetooth com port
-    SerialBT.print("X: ");
-    SerialBT.print(event.orientation.x, 4);
-    SerialBT.print("\tY: ");
-    SerialBT.print(event.orientation.y, 4);
-    SerialBT.print("\tZ: ");
-    SerialBT.print(event.orientation.z, 4);
-    SerialBT.println("");
-    */
-    
-  /* //testing the acceleration vectors
-  imu::Vector<3> accel1 = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //Display the floating point data 
-  Serial.print("X: ");
-  Serial.print(accel1.x());
-  Serial.print(" Y: ");
-  Serial.print(accel1.y());
-  Serial.print(" Z: ");
-  Serial.print(accel1.z());
-  Serial.println("");
-  */
-  
+  spot++;//move to the next index of the arrays 
   delay(1000);
   }
 }
