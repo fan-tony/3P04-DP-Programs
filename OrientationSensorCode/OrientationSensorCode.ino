@@ -2,6 +2,7 @@
 //Sensor1 sda=GPIO21, scl-gpio22
 //Sensor 2 sda=gpio33; scl=gpio32
 //I2C address is 0x28
+//Treat sensor 1 as the foot sensor and sensor 2 as the shin sensor
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -22,6 +23,7 @@ void setup(void){
   //Initial Setup
   Serial.begin(9600);//begin serial information
   SerialBT.begin("ESP32");//search your bluetooth devices for ESP32 and connect once the esp is powered and running the code
+  Serial.println("Begin Orientation Sensor test");
 
   Wire.begin();
   Wire1.begin(SDA_2, SCL_2);
@@ -68,7 +70,7 @@ void infoToString(double info[][3], int spot){//info is expressed as a double ar
 ******************/
 double infoS[200][3];//global variable holding angle information of the shin; is an array that holds other arrays
 double infoF[200][3];//global variable holding angle information of the foot; is an array that holds other arrays
-double 
+double angle[200][3];//holds the difference between the two angles 
 int spot = 0;//initialize the spot of the array you're on
 
 
@@ -92,7 +94,6 @@ void loop(void){
   */
   
   if (spot < int(200)){//only collect 200 instances of data
-    
     sensors_event_t event1;//initialize event as a sensor event for sensor object 1
     sensors_event_t event2;//initialize event as a sensor event for sensor object 2
 
@@ -106,18 +107,18 @@ void loop(void){
     getOrientation(event1, orient1);//get the orientation from sensor 1 and manipulate the array orient1
     getOrientation(event2, orient2);//get the orientation from sensor 2
 
-    /* Store the obtained sensor x y and z, then push it to the global arrays storing the real time values; infoF and infoS*/
+    /* Store x y and z values in orient in the global arrays of info    */  
     for(int i=0;i<3;i++){
       infoF[spot][i] = orient1[i];
       infoS[spot][i] = orient2[i];
+      angle[spot][i] = orient2[i]-orient1[i];//angle becomes the difference between the two sensors
     }
     
     //print them out to verify 
-    infoToString(infoF,spot);
-    infoToString(infoS,spot);
+    infoToString(angle,spot);
 
 
   spot++;//move to the next index of the arrays 
-  delay(1000);
+  delay(100);
   }
 }
