@@ -57,13 +57,13 @@ void getOrientation(sensors_event_t event, double orientation[]){
  }
 
 void infoToString(double info[][3], int spot){//info is expressed as a double array where each array holds 3 elements denoting x, y, and z
-  Serial.print("X: ");
-  Serial.print(info[spot][0], 4);
-  Serial.print("\tY: ");
-  Serial.print(info[spot][1], 4);
-  Serial.print("\tZ: ");
-  Serial.print(info[spot][2], 4);
-  Serial.println("");
+  SerialBT.print("X: ");
+  SerialBT.print(info[spot][0], 4);
+  SerialBT.print("\tY: ");
+  SerialBT.print(info[spot][1], 4);
+  SerialBT.print("\tZ: ");
+  SerialBT.print(info[spot][2], 4);
+  SerialBT.println("");
 }
 /******************
 * Global variables*
@@ -119,6 +119,6 @@ void loop(void){
 
 
   spot++;//move to the next index of the arrays 
-  delay(100);
+  delay(200);
   }
 }
