@@ -1,6 +1,6 @@
 //CODE FOR INTERFACING TWO BNO055 ORIENTATION SENSORS AND THE ESP32 
-//Sensor1 sda=GPIO21, scl-gpio22
-//Sensor 2 sda=gpio33; scl=gpio32
+//Sensor1 sda=GPIO21, scl-gpio22 ;foot
+//Sensor 2 sda=gpio33; scl=gpio32 ; shin
 //I2C address is 0x28
 //Treat sensor 1 as the foot sensor and sensor 2 as the shin sensor
 
@@ -19,11 +19,18 @@ BluetoothSerial SerialBT;//setup bluetooth
 Adafruit_BNO055 bno1; //initialize sensor object1
 Adafruit_BNO055 bno2; //initialize sensor object2; this has the changed sda and scl 
 
+/******************
+* Global variables*
+******************/
+double stop1[3]={0,0,0};//standing still acceleration of x y and z
+double stop2[3]={0,0,0};
+int stopFlag = 0;
+
 void setup(void){
   //Initial Setup
   Serial.begin(9600);//begin serial information
-  SerialBT.begin("ESP32");//search your bluetooth devices for ESP32 and connect once the esp is powered and running the code
-  Serial.println("Begin Orientation Sensor test");
+  SerialBT.begin("ESP32Team5");//search your bluetooth devices for ESP32 and connect once the esp is powered and running the code
+  SerialBT.println("Begin Orientation Sensor test");
 
   Wire.begin();
   Wire1.begin(SDA_2, SCL_2);
@@ -32,18 +39,43 @@ void setup(void){
   
   /* If there's an issue with setting up the sensors, then describe which sensor it was that had the issue */
   if(!bno1.begin()){/* There was a problem detecting the BNO055 ... check your connections */
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    SerialBT.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     while(1);//lock it in here because it wasn't detected
   }//end if statement
   
   if(!bno2.begin()){/* There was a problem detecting the BNO055 ... check your connections */
-    Serial.print("Ooops, no BNO055 (2) detected ... Check your wiring or I2C ADDR!");
+    SerialBT.print("Ooops, no BNO055 (2) detected ... Check your wiring or I2C ADDR!");
     while(1);//lock it in here because it wasn't detected
   }//end if statement
 
   delay(1000);
   bno1.setExtCrystalUse(true);
   bno2.setExtCrystalUse(true);
+
+  //average the user's standing still value over 5 seconds, and take 100 samples
+  for (int i=0;i<100;i++){
+    sensors_event_t stopEvent1;//initialize event as a sensor event for sensor object 1
+    sensors_event_t stopEvent2;//initialize event as a sensor event for sensor object 2
+  
+    //Get a new sensor event for both sensor objects
+    bno1.getEvent(&stopEvent1,Adafruit_BNO055::VECTOR_LINEARACCEL);//get the event occuring and store it in event 1
+    bno2.getEvent(&stopEvent2,Adafruit_BNO055::VECTOR_LINEARACCEL);//store the event from sensor 2 in event2's address
+  
+    stop1[0]+=stopEvent1.acceleration.x;
+    stop1[1]+=stopEvent1.acceleration.y;
+    stop1[2]+=stopEvent1.acceleration.z;
+    stop2[0]+=stopEvent2.acceleration.x;
+    stop2[1]+=stopEvent2.acceleration.y;
+    stop2[2]+=stopEvent2.acceleration.z;
+    delay(50);
+  }
+  
+  for (int i=0;i<3;i++){//average them out now because 100 samples were just taken
+    stop1[i]/=100;
+    stop1[i]+=0.05;//add a small buffer zone for stopping
+    stop2[i]/=100;
+    stop2[i]+=0.05;//add a small buffer zone for stopping
+  }
 }
 
 /**********************************************
@@ -56,69 +88,98 @@ void getOrientation(sensors_event_t event, double orientation[]){
   orientation[2] = (event.orientation.z);
  }
 
-void infoToString(double info[][3], int spot){//info is expressed as a double array where each array holds 3 elements denoting x, y, and z
+void infoToString(double info[3]){//info is expressed as a double array where each array holds 3 elements denoting x, y, and z
   SerialBT.print("X: ");
-  SerialBT.print(info[spot][0], 4);
+  SerialBT.print(info[0], 4);
   SerialBT.print("\tY: ");
-  SerialBT.print(info[spot][1], 4);
+  SerialBT.print(info[1], 4);
   SerialBT.print("\tZ: ");
-  SerialBT.print(info[spot][2], 4);
+  SerialBT.print(info[2], 4);
   SerialBT.println("");
 }
-/******************
-* Global variables*
-******************/
-double infoS[200][3];//global variable holding angle information of the shin; is an array that holds other arrays
-double infoF[200][3];//global variable holding angle information of the foot; is an array that holds other arrays
-double angle[200][3];//holds the difference between the two angles 
-int spot = 0;//initialize the spot of the array you're on
 
+boolean checkStop(){//gets the current acceleration, and compares it to the average stopping acceleration
+  double accel1[3];
+  double accel2[3];
+  sensors_event_t stopEvent1;//initialize event as a sensor event for sensor object 1
+  sensors_event_t stopEvent2;//initialize event as a sensor event for sensor object 2
+
+  //Get a new sensor event for both sensor objects
+  bno1.getEvent(&stopEvent1, Adafruit_BNO055::VECTOR_LINEARACCEL);//get the event occuring and store it in event 1
+  bno2.getEvent(&stopEvent2, Adafruit_BNO055::VECTOR_LINEARACCEL);//store the event from sensor 2 in event2's address
+  
+  accel1[0]+=stopEvent1.acceleration.x;
+  accel1[1]+=stopEvent1.acceleration.y;
+  accel1[2]+=stopEvent1.acceleration.z;
+  accel2[0]+=stopEvent2.acceleration.x;
+  accel2[1]+=stopEvent2.acceleration.y;
+  accel2[2]+=stopEvent2.acceleration.z;
+
+  SerialBT.print("X: ");
+  SerialBT.print(stop1[0]);
+  SerialBT.print(" Y: ");
+  SerialBT.print(stop1[1]);
+  SerialBT.print(" Z: ");
+  SerialBT.print(stop1[2]);
+  SerialBT.println("");
+
+  SerialBT.print("X: ");
+  SerialBT.print(abs(accel2[0]));
+  SerialBT.print(" Y: ");
+  SerialBT.print(abs(accel2[1]));
+  SerialBT.print(" Z: ");
+  SerialBT.print(abs(accel2[2]));
+  SerialBT.println("");
+
+  if(abs(accel1[0]) < stop1[0]  || abs(accel1[1]) < stop1[1] || abs(accel1[2]) < stop1[2] || abs(accel2[0]) < stop2[0] || abs(accel2[1]) < stop2[1] || abs(accel2[2]) < stop2[2]){//if any acceleration values are under the average stopping, then stop sending data 
+    return true;
+    }
+    return false;//otherwise you are in motion
+  }
+  
 
 /********************************
  * Main method to be implemented*
  *******************************/
 void loop(void){
-  //first determine if the current data is useful; ie, if the foot is accelerating, meaning movement is occuring, then we want to start recording the data
-  /* //testing the acceleration vectors*/
-  imu::Vector<3> accel1 = bno1.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-  imu::Vector<3> accel2 = bno2.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //Display the floating point data 
-  /*
-  Serial.print("X: ");
-  Serial.print(accel1.x());
-  Serial.print(" Y: ");
-  Serial.print(accel1.y());
-  Serial.print(" Z: ");
-  Serial.print(accel1.z());
-  Serial.println("");
-  */
-  
-  if (spot < int(200)){//only collect 200 instances of data
-    sensors_event_t event1;//initialize event as a sensor event for sensor object 1
-    sensors_event_t event2;//initialize event as a sensor event for sensor object 2
+  //first determine if the current data is useful; take measurements for 5 seconds 
 
-    /* Get a new sensor event for both sensor objects*/
-    bno1.getEvent(&event1);//get the event occuring and store it in event 1
-    bno2.getEvent(&event2);//store the event from sensor 2 in event2's address
+  //Initialize local variables to be used
+  double* orient1 = new double[3];//holds xyz for sensor 1
+  double* orient2 = new double[3];//holds xyz for sensor 2
+  double angle[3];//holds angle between two sensors for xyz
+  sensors_event_t event1;//initialize event as a sensor event for sensor object 1
+  sensors_event_t event2;//initialize event as a sensor event for sensor object 2
 
-    //empty arrays to store x y and z orientation for the respective sensor
-    double* orient1 = new double[3];
-    double* orient2 = new double[3];
-    getOrientation(event1, orient1);//get the orientation from sensor 1 and manipulate the array orient1
-    getOrientation(event2, orient2);//get the orientation from sensor 2
+  //Get a new sensor event for both sensor objects
+  bno1.getEvent(&event1);//get the event occuring and store it in event 1
+  bno2.getEvent(&event2);//store the event from sensor 2 in event2's address
 
-    /* Store x y and z values in orient in the global arrays of info    */  
-    for(int i=0;i<3;i++){
-      infoF[spot][i] = orient1[i];
-      infoS[spot][i] = orient2[i];
-      angle[spot][i] = orient2[i]-orient1[i];//angle becomes the difference between the two sensors
-    }
-    
-    //print them out to verify 
-    infoToString(angle,spot);
+  //store xyz in orient1 and orient2
+  getOrientation(event1, orient1);//get orientation values
+  getOrientation(event2, orient2);
 
-
-  spot++;//move to the next index of the arrays 
-  delay(200);
+  //calculate the angle between the two
+  for(int i=0;i<3;i++){
+    angle[i] = orient2[i]-orient1[i];//angle becomes the difference between the two sensors
   }
+  
+  //print them out to verify 
+  //infoToString(angle);
+  SerialBT.println("DATA OUTGOING");
+
+
+
+  if (checkStop()==true){stopFlag +=1;}//check if the person is standing still 
+  if(stopFlag==50){//if the person has been standing still for 5 second (50 * 100ms delay at the end of the loop)
+    while(checkStop()==true){
+    //then do nothing, until the program reads that they're moving again
+    SerialBT.println("PROGRAM STOPPED");
+    delay(100);
+    }
+  stopFlag=0;//if you're out here then you've started moving again, so reset the stopFlag counter
+  }
+  
+  delay(100);//100ms wait time between each reading
+
 }
