@@ -27,10 +27,11 @@ double stop2 = 0;
 int stopFlag = 0;
 
 void setup(void){
+
   //Initial Setup
   Serial.begin(9600);//begin serial information
   SerialBT.begin("ESP32Team5");//search your bluetooth devices for ESP32 and connect once the esp is powered and running the code
-  SerialBT.println("");//print header for CSV file
+  SerialBT.println("zAccel");//print header for CSV file
 
   Wire.begin();
   Wire1.begin(SDA_2, SCL_2);
@@ -118,41 +119,44 @@ void infoToString(double info[3]){//info is expressed as a double array where ea
  * Main method to be implemented*
  *******************************/
 void loop(void){
-  //first determine if the current data is useful; take measurements for 5 seconds 
+  int state = SerialBT.read();
 
-  //Initialize local variables to be used
-  double* orient1 = new double[3];//holds xyz for sensor 1
-  double* orient2 = new double[3];//holds xyz for sensor 2
-  double angle[3];//holds angle between two sensors for xyz
-  sensors_event_t event1;//initialize event as a sensor event for sensor object 1
-  sensors_event_t event2;//initialize event as a sensor event for sensor object 2
+  if (state == 0){}
 
-  //Get a new sensor event for both sensor objects
-  bno1.getEvent(&event1);//get the event occuring and store it in event 1
-  bno2.getEvent(&event2);//store the event from sensor 2 in event2's address
-
-  //store xyz in orient1 and orient2
-  getOrientation(event1, orient1);//get orientation values
-  getOrientation(event2, orient2);
-
-  //calculate the angle between the two
-  for(int i=0;i<3;i++){
-    angle[i] = orient2[i]-orient1[i];//angle becomes the difference between the two sensors
-  }
+  else if (state == 1){
+    //Initialize local variables to be used
+    double* orient1 = new double[3];//holds xyz for sensor 1
+    double* orient2 = new double[3];//holds xyz for sensor 2
+    double angle[3];//holds angle between two sensors for xyz
+    sensors_event_t event1;//initialize event as a sensor event for sensor object 1
+    sensors_event_t event2;//initialize event as a sensor event for sensor object 2
   
-  //print them out to verify 
-  infoToString(angle);
-
-
-  if (checkStop()==true){stopFlag +=1;}//check if the person is standing still 
-  if(stopFlag==50){//if the person has been standing still for 5 second (50 * 100ms delay at the end of the loop)
-    while(checkStop()==true){
-    //then do nothing, until the program reads that they're moving again
-    delay(50);
+    //Get a new sensor event for both sensor objects
+    bno1.getEvent(&event1);//get the event occuring and store it in event 1
+    bno2.getEvent(&event2);//store the event from sensor 2 in event2's address
+  
+    //store xyz in orient1 and orient2
+    getOrientation(event1, orient1);//get orientation values
+    getOrientation(event2, orient2);
+  
+    //calculate the angle between the two
+    for(int i=0;i<3;i++){
+      angle[i] = orient2[i]-orient1[i];//angle becomes the difference between the two sensors
     }
-  stopFlag=0;//if you're out here then you've started moving again, so reset the stopFlag counter
-  }
+    
+    //print them out to verify 
+    infoToString(angle);
   
-  delay(50);//100ms wait time between each reading
-
+  
+    if (checkStop()==true){stopFlag +=1;}//check if the person is standing still 
+    if(stopFlag==50){//if the person has been standing still for 5 second (50 * 100ms delay at the end of the loop)
+      while(checkStop()==true){
+      //then do nothing, until the program reads that they're moving again
+      delay(50);
+      }
+    stopFlag=0;//if you're out here then you've started moving again, so reset the stopFlag counter
+    }
+    
+    delay(50);//100ms wait time between each reading
+  }
 }
